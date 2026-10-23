@@ -1,0 +1,41 @@
+name: source probe
+
+# Manual only. Checks from a runner whether the product lifecycle service
+# answers and how fast: the software listing (which sets the session
+# cookie), one product's versions page, the hardware listing, one product
+# line's models page, then 6 more paced item pages; reports latency, every
+# non-200 answer and every 200 whose envelope code is not 0. Stores nothing.
+# Set the repository secret SOURCE_BASE to the service's base URL
+# (Settings → Secrets and variables → Actions → Secrets); it is masked in every log.
+on:
+  workflow_dispatch:
+    inputs:
+      pace:
+        description: "seconds between requests"
+        required: false
+        default: "1"
+      more:
+        description: "paced item pages after the first four calls (default 6)"
+        required: false
+        default: ""
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: refuse without the source secret
+        env:
+          BASE: ${{ secrets.SOURCE_BASE }}
+        run: |
+          if [ -z "$BASE" ]; then echo "::error::repository secret SOURCE_BASE is not set"; exit 1; fi
+      - name: probe
+        env:
+          BASE: ${{ secrets.SOURCE_BASE }}
+          PACE: ${{ inputs.pace }}
+          MORE: ${{ inputs.more }}
+        run: |
+          chmod +x bin/source-probe
+          sha256sum bin/source-probe
+          bin/source-probe
